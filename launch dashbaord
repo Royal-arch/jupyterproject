@@ -1,0 +1,58 @@
+import dash
+import dash_core_components as dcc
+import dash_html_components as html
+from dash.dependencies import Input, Output
+import plotly.express as px
+import pandas as pd
+
+app = dash.Dash(__name__)
+
+app.layout = html.Div([
+    dcc.Dropdown(
+        id='site-dropdown',
+        options=[
+            {'label': 'All Sites', 'value': 'ALL'},
+        ],
+        value='ALL',
+        placeholder="Select a Launch Site",
+        searchable=True
+    ),
+    dcc.RangeSlider(
+        id='payload-slider',
+        min=0,
+        max=10000,
+        step=1000,
+        value=[0, 10000],
+        marks={i: f'{i:,}' for i in range(0, 10001, 1000)}
+    ),
+    html.Div(id='output-payload-slider'),
+    dcc.Graph(id='success-payload-scatter-chart')
+])
+
+@app.callback(
+    Output('output-payload-slider', 'children'),
+    Input('payload-slider', 'value')
+)
+def update_output(selected_range):
+    return f'You have selected payload range: {selected_range[0]} kg to {selected_range[1]} kg'
+
+@app.callback(
+    Output('success-payload-scatter-chart', 'figure'),
+    [Input('site-dropdown', 'value'),
+     Input('payload-slider', 'value')]
+)
+def update_scatter_chart(site, payload_range):
+    min_payload, max_payload = payload_range
+    if site == 'ALL':
+        filtered_df = spacex_df[(spacex_df['Payload Mass (kg)'] >= min_payload) & (spacex_df['Payload Mass (kg)'] <= max_payload)]
+    else:
+        filtered_df = spacex_df[(spacex_df['Launch Site'] == site) & (spacex_df['Payload Mass (kg)'] >= min_payload) & (spacex_df['Payload Mass (kg)'] <= max_payload)]
+    
+    fig = px.scatter(filtered_df, x='Payload Mass (kg)', y='class',
+                     color='Booster Version Category',
+                     title='Payload vs. Launch Outcome',
+                     labels={'class': 'Launch Outcome'})
+    return fig
+
+if __name__ == '__main__':
+    app.run_server(debug=True)
